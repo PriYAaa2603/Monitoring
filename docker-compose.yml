@@ -1,0 +1,175 @@
+services:
+  mysql-instance-1:
+    image: mariadb:10.11
+    container_name: mysql-instance-1
+    hostname: mysql-instance-1
+    environment:
+      MARIADB_ROOT_PASSWORD: rootpassword
+      MARIADB_DATABASE: ecommerce
+    ports:
+      - "33061:3306"
+    volumes:
+      - mysql-data-1:/var/lib/mysql
+      - ./mariadb/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - monitoring
+
+  mysql-instance-2:
+    image: mariadb:10.11
+    container_name: mysql-instance-2
+    hostname: mysql-instance-2
+    environment:
+      MARIADB_ROOT_PASSWORD: rootpassword
+      MARIADB_DATABASE: ecommerce
+    ports:
+      - "33062:3306"
+    volumes:
+      - mysql-data-2:/var/lib/mysql
+      - ./mariadb/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - monitoring
+
+  mysql-instance-3:
+    image: mariadb:10.11
+    container_name: mysql-instance-3
+    hostname: mysql-instance-3
+    environment:
+      MARIADB_ROOT_PASSWORD: rootpassword
+      MARIADB_DATABASE: ecommerce
+    ports:
+      - "33063:3306"
+    volumes:
+      - mysql-data-3:/var/lib/mysql
+      - ./mariadb/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - monitoring
+
+  mysqld-exporter-1:
+    image: prom/mysqld-exporter:v0.15.1
+    container_name: mysqld-exporter-1
+    environment:
+      DATA_SOURCE_NAME: "exporter:exporterpassword@(mysql-instance-1:3306)/"
+    ports:
+      - "9104:9104"
+    depends_on:
+      mysql-instance-1:
+        condition: service_healthy
+    networks:
+      - monitoring
+
+  mysqld-exporter-2:
+    image: prom/mysqld-exporter:v0.15.1
+    container_name: mysqld-exporter-2
+    environment:
+      DATA_SOURCE_NAME: "exporter:exporterpassword@(mysql-instance-2:3306)/"
+    ports:
+      - "9105:9104"
+    depends_on:
+      mysql-instance-2:
+        condition: service_healthy
+    networks:
+      - monitoring
+
+  mysqld-exporter-3:
+    image: prom/mysqld-exporter:v0.15.1
+    container_name: mysqld-exporter-3
+    environment:
+      DATA_SOURCE_NAME: "exporter:exporterpassword@(mysql-instance-3:3306)/"
+    ports:
+      - "9106:9104"
+    depends_on:
+      mysql-instance-3:
+        condition: service_healthy
+    networks:
+      - monitoring
+
+  sysbench:
+    build:
+      context: ./sysbench
+    container_name: sysbench
+    environment:
+      SYSBENCH_THREADS_1: ${SYSBENCH_THREADS_1:-4}
+      SYSBENCH_THREADS_2: ${SYSBENCH_THREADS_2:-8}
+      SYSBENCH_THREADS_3: ${SYSBENCH_THREADS_3:-2}
+      SYSBENCH_TABLES: ${SYSBENCH_TABLES:-4}
+      SYSBENCH_TABLE_SIZE: ${SYSBENCH_TABLE_SIZE:-1000}
+      SYSBENCH_REPORT_INTERVAL: ${SYSBENCH_REPORT_INTERVAL:-10}
+      SYSBENCH_TIME: ${SYSBENCH_TIME:-0}
+      MYSQL_ROOT_PASSWORD: rootpassword
+    depends_on:
+      mysql-instance-1:
+        condition: service_healthy
+      mysql-instance-2:
+        condition: service_healthy
+      mysql-instance-3:
+        condition: service_healthy
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+    depends_on:
+      - mysqld-exporter-1
+      - mysqld-exporter-2
+      - mysqld-exporter-3
+    networks:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    networks:
+      - monitoring
+
+volumes:
+  mysql-data-1:
+  mysql-data-2:
+  mysql-data-3:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  monitoring:
+    driver: bridge
