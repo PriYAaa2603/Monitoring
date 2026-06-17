@@ -65,8 +65,11 @@ services:
   mysqld-exporter-1:
     image: prom/mysqld-exporter:v0.15.1
     container_name: mysqld-exporter-1
+    command:
+      - "--mysqld.address=mysql-instance-1:3306"
+      - "--mysqld.username=exporter"
     environment:
-      DATA_SOURCE_NAME: "exporter:exporterpassword@(mysql-instance-1:3306)/"
+      MYSQLD_EXPORTER_PASSWORD: exporterpassword
     ports:
       - "9104:9104"
     depends_on:
@@ -78,8 +81,11 @@ services:
   mysqld-exporter-2:
     image: prom/mysqld-exporter:v0.15.1
     container_name: mysqld-exporter-2
+    command:
+      - "--mysqld.address=mysql-instance-2:3306"
+      - "--mysqld.username=exporter"
     environment:
-      DATA_SOURCE_NAME: "exporter:exporterpassword@(mysql-instance-2:3306)/"
+      MYSQLD_EXPORTER_PASSWORD: exporterpassword
     ports:
       - "9105:9104"
     depends_on:
@@ -91,8 +97,11 @@ services:
   mysqld-exporter-3:
     image: prom/mysqld-exporter:v0.15.1
     container_name: mysqld-exporter-3
+    command:
+      - "--mysqld.address=mysql-instance-3:3306"
+      - "--mysqld.username=exporter"
     environment:
-      DATA_SOURCE_NAME: "exporter:exporterpassword@(mysql-instance-3:3306)/"
+      MYSQLD_EXPORTER_PASSWORD: exporterpassword
     ports:
       - "9106:9104"
     depends_on:
