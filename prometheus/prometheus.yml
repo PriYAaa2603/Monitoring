@@ -17,3 +17,13 @@ scrape_configs:
           - mysqld-exporter-3:9104
         labels:
           instance: mysql-instance-3
+
+  - job_name: cadvisor
+    static_configs:
+      - targets:
+          - cadvisor:8080
+
+  - job_name: telegraf
+    static_configs:
+      - targets:
+          - telegraf:9273

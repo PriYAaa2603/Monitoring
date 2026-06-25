@@ -3,6 +3,7 @@ services:
     image: mariadb:10.11
     container_name: mysql-instance-1
     hostname: mysql-instance-1
+    command: --thread-handling=one-thread-per-connection
     environment:
       MARIADB_ROOT_PASSWORD: rootpassword
       MARIADB_DATABASE: ecommerce
@@ -24,6 +25,7 @@ services:
     image: mariadb:10.11
     container_name: mysql-instance-2
     hostname: mysql-instance-2
+    command: --thread-handling=one-thread-per-connection
     environment:
       MARIADB_ROOT_PASSWORD: rootpassword
       MARIADB_DATABASE: ecommerce
@@ -45,6 +47,7 @@ services:
     image: mariadb:10.11
     container_name: mysql-instance-3
     hostname: mysql-instance-3
+    command: --thread-handling=one-thread-per-connection
     environment:
       MARIADB_ROOT_PASSWORD: rootpassword
       MARIADB_DATABASE: ecommerce
@@ -68,6 +71,7 @@ services:
     command:
       - "--mysqld.address=mysql-instance-1:3306"
       - "--mysqld.username=exporter"
+      - "--collect.info_schema.tables"
     environment:
       MYSQLD_EXPORTER_PASSWORD: exporterpassword
     ports:
@@ -84,6 +88,7 @@ services:
     command:
       - "--mysqld.address=mysql-instance-2:3306"
       - "--mysqld.username=exporter"
+      - "--collect.info_schema.tables"
     environment:
       MYSQLD_EXPORTER_PASSWORD: exporterpassword
     ports:
@@ -100,6 +105,7 @@ services:
     command:
       - "--mysqld.address=mysql-instance-3:3306"
       - "--mysqld.username=exporter"
+      - "--collect.info_schema.tables"
     environment:
       MYSQLD_EXPORTER_PASSWORD: exporterpassword
     ports:
@@ -133,6 +139,31 @@ services:
     networks:
       - monitoring
     restart: unless-stopped
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: cadvisor
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    ports:
+      - "8080:8080"
+    networks:
+      - monitoring
+
+  telegraf:
+    image: telegraf:1.30-alpine
+    container_name: telegraf
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    ports:
+      - "9273:9273"
+    networks:
+      - monitoring
 
   prometheus:
     image: prom/prometheus:v2.51.2
